@@ -10,14 +10,15 @@
 #include <WiFi.h>
 #include <esp_now.h>
 
-#define TARGET_1_PIN 0
-#define TARGET_2_PIN 4
+#define TARGET_1_PIN 33
+#define TARGET_2_PIN 2
 #define LED_PIN 15
 
-String TARGET_1_ID = "03";
-String TARGET_2_ID = "04";
+String TARGET_1_ID = "01";
+String TARGET_2_ID = "02";
 String TARGET_1_SCORE = "05";
 String TARGET_2_SCORE = "05";
+#define SLEEP_SECS  5          // Timer fallback wakeup (seconds)
 String code;
 
 bool target1_set = 1;
@@ -105,8 +106,7 @@ void setup() {
   delay(1000);
 
   WiFi.mode(WIFI_STA);
-  Serial.println("ESP-NOW Stop target");
-
+  Serial.println("ESP-NOW");
   Serial.print("MAC Address: ");
   Serial.println(WiFi.macAddress());
   WiFi.disconnect();
@@ -125,16 +125,24 @@ void setup() {
   }
 
   pinMode(LED_PIN, OUTPUT);               // Set the ledPin as an output pin
-  pinMode(TARGET_1_PIN, INPUT_PULLUP);    // Set the target 1 pin as an input pin
-  pinMode(TARGET_2_PIN, INPUT_PULLUP);    // SSet the target 2 pin as an input pin
+  pinMode(TARGET_1_PIN, INPUT);    // Set the target 1 pin as an input pin
+ // pinMode(TARGET_2_PIN, INPUT);    // SSet the target 2 pin as an input pin
 
   digitalWrite(LED_PIN, HIGH);
 }
 
 void loop()
 {
-
-	if (digitalRead(TARGET_1_PIN) == LOW && target1_set == 1) {  // Target 1 has been hit
+    //  // Timer: wake after SLEEP_SECS seconds
+    // esp_sleep_enable_timer_wakeup((uint64_t)SLEEP_SECS * 1000000ULL);
+    // //esp_sleep_enable_gpio_wakeup(); 
+    // //gpio_wakeup_enable((gpio_num_t)TARGET_1_PIN, GPIO_INTR_HIGH_LEVEL);    
+    // Serial.println("Entering Light Sleep...");
+    // Serial.flush();              
+    // esp_light_sleep_start(); 
+    // Serial.println("Resumed from Light Sleep!");
+    
+	if (digitalRead(TARGET_1_PIN) == HIGH && target1_set == 1) {  // Target 1 has been hit
         Serial.println("Target 1 has been hit");    
         code = String(TARGET_1_ID + "|SCORE=" + TARGET_1_SCORE);
         broadcast(code);
@@ -143,30 +151,33 @@ void loop()
         digitalWrite(LED_PIN, HIGH);
         target1_set = 0;   
     }
-	if (digitalRead(TARGET_1_PIN) == HIGH && target1_set == 0) {  // Target 1 has been reset
+
+	if (digitalRead(TARGET_1_PIN) == LOW && target1_set == 0) {  // Target 1 has been reset
         Serial.println("Target 1 has been reset"); 
         code = String(TARGET_1_ID + "|COMMAND=TARGETRESET");
-        broadcast(code);  
-        target1_set = 1;
-        delay(200);
-    }   
-
-	if (digitalRead(TARGET_2_PIN) == LOW && target2_set == 1) {  // Target 2 has been hit
-        Serial.println("Target 2 has been hit"); 
-        code = String(TARGET_2_ID + "|SCORE=" + TARGET_2_SCORE);
-        broadcast(code);
+        broadcast(code); 
         digitalWrite(LED_PIN, LOW);
         delay(200);
-        digitalWrite(LED_PIN, HIGH);
-        target2_set = 0;    
-    }
-	if (digitalRead(TARGET_2_PIN) == HIGH && target2_set == 0) {  // Target 2 has been reset
-        Serial.println("Target 2 has been reset"); 
-        code = String(TARGET_2_ID + "|COMMAND=TARGETRESET");
-        broadcast(code);  
-        target2_set = 1;    
-        delay(200);
-    }      
+        digitalWrite(LED_PIN, HIGH); 
+        target1_set = 1; 
+    }   
+
+	// if (digitalRead(TARGET_2_PIN) == HIGH && target2_set == 1) {  // Target 2 has been hit
+    //     Serial.println("Target 2 has been hit"); 
+    //     code = String(TARGET_2_ID + "|SCORE=" + TARGET_2_SCORE);
+    //     broadcast(code);
+    //     digitalWrite(LED_PIN, LOW);
+    //     delay(200);
+    //     digitalWrite(LED_PIN, HIGH);
+    //     target2_set = 0;    
+    // }
+	// if (digitalRead(TARGET_2_PIN) == LOW && target2_set == 0) {  // Target 2 has been reset
+    //     Serial.println("Target 2 has been reset"); 
+    //     code = String(TARGET_2_ID + "|COMMAND=TARGETRESET");
+    //     broadcast(code);  
+    //     target2_set = 1;    
+    //     delay(200);
+    // }      
 
     
 }
