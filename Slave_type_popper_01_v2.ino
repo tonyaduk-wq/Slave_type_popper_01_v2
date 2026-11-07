@@ -10,9 +10,9 @@
 #include <WiFi.h>
 #include <esp_now.h>
 
-#define TARGET_1_PIN 33
-#define TARGET_2_PIN 32
-#define LED_PIN 15
+#define TARGET_1_PIN 2
+#define TARGET_2_PIN 15
+#define LED_PIN 4
 #define BUTTON_PIN_BITMASK(GPIO) (1ULL << GPIO)  // 2 ^ GPIO_NUMBER in hex
 
 String TARGET_1_ID = "01";
@@ -20,6 +20,7 @@ String TARGET_2_ID = "02";
 String TARGET_1_SCORE = "05";
 String TARGET_2_SCORE = "05";
 String code;
+int GPIO_wakeup_pin;
 
 void formatMacAddress(const wifi_tx_info_t* macAddr, char* buffer, int maxLength)
 {
@@ -97,6 +98,10 @@ void broadcast(const String& message)
     }
 }
 
+int Get_GPIO_wake_up(){
+  int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
+  return log(GPIO_reason)/log(2);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -121,11 +126,15 @@ void setup() {
       ESP.restart();
   }
 
-  pinMode(LED_PIN, OUTPUT);               // Set the ledPin as an output pin
-  pinMode(TARGET_1_PIN, INPUT_PULLDOWN);    // Set the target 1 pin as an input pin
-  pinMode(TARGET_2_PIN, INPUT_PULLDOWN);    // SSet the target 2 pin as an input pin
+    pinMode(LED_PIN, OUTPUT);               // Set the ledPin as an output pin
+    pinMode(TARGET_1_PIN, INPUT_PULLDOWN);    // Set the target 1 pin as an input pin
+    pinMode(TARGET_2_PIN, INPUT_PULLDOWN);    // SSet the target 2 pin as an input pin
 
-	if (digitalRead(TARGET_1_PIN) == HIGH) {  // Target 1 has been hit
+    GPIO_wakeup_pin = Get_GPIO_wake_up();
+    Serial.print("GPIO that triggered the wake up: GPIO ");
+    Serial.println(GPIO_wakeup_pin);   
+
+	if (GPIO_wakeup_pin == TARGET_1_PIN) {  // Target 1 has been hit
         Serial.println("Target 1 has been hit");    
         code = String(TARGET_1_ID + "|SCORE=" + TARGET_1_SCORE);
         broadcast(code);
@@ -134,7 +143,7 @@ void setup() {
         digitalWrite(LED_PIN, HIGH);
     } 
 
-    if (digitalRead(TARGET_2_PIN) == HIGH) {  // Target 2 has been hit
+    if (GPIO_wakeup_pin == TARGET_2_PIN) {  // Target 2 has been hit
         Serial.println("Target 2 has been hit"); 
         code = String(TARGET_2_ID + "|SCORE=" + TARGET_2_SCORE);
         broadcast(code);
@@ -143,16 +152,13 @@ void setup() {
         digitalWrite(LED_PIN, HIGH);
     }      
 
-    int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
-    Serial.print("GPIO that triggered the wake up: GPIO ");
-    Serial.println((log(GPIO_reason))/log(2), 0);
-//   esp_sleep_enable_timer_wakeup((uint64_t)10 * 1000000ULL); 
+
+    //   esp_sleep_enable_timer_wakeup((uint64_t)10 * 1000000ULL); 
     Serial.println("Entering Deep Sleep");
     esp_sleep_enable_gpio_wakeup(); 
 
     uint64_t bitmask = BUTTON_PIN_BITMASK((gpio_num_t)TARGET_1_PIN) | BUTTON_PIN_BITMASK((gpio_num_t)TARGET_2_PIN); 
     esp_sleep_enable_ext1_wakeup_io(bitmask, ESP_EXT1_WAKEUP_ANY_HIGH);   
-
  
     Serial.flush(); 
     esp_deep_sleep_start();       // Does not return
